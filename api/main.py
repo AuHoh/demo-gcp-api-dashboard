@@ -1,5 +1,6 @@
 import json
 import pickle
+import os
 from smart_open import open
 
 import pandas as pd
@@ -8,7 +9,7 @@ from fastapi import FastAPI, Body, HTTPException
 from sample_call import test_dict
 
 th_proba = 0.54
-model_path = '/Users/audreyhohmann/Documents/Formation/OCR/P7/mlruns/274439274391636157/99fce0a77f4045eda1e8cb7e14c57ab7/artifacts/model/model.pkl'
+model_path = os.getenv('MODEL_PATH', 'tests/model.pkl')
 with open(model_path, 'rb') as file:
     model = pickle.load(file)
 

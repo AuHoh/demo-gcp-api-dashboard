@@ -29,4 +29,4 @@ jobs:
         if [ -f api/requirements.txt ]; then pip install -r api/requirements.txt; fi
     - name: Test API with unit test
       run: |
-        python -m unittest discover -s api -t api/tests
+        export PYTHONPATH=api MODEL_PATH=api/tests/model.pkl && python -m unittest discover -s api/tests -t api
