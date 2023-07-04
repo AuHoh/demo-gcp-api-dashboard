@@ -1,3 +1,4 @@
 fastapi==0.99.1
 pandas==1.5.3
 httpx==0.24.1
+smart-open==6.3.0
