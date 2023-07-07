@@ -21,12 +21,12 @@ filtered_df = df.loc[df['SK_ID_CURR'] == ID_pret]
 # Vérifier si des données correspondent à l'ID sélectionné
 if not filtered_df.empty:
     st.subheader(f"Profil du client pour l'ID prêt sélectionné : {ID_pret}")
-    st.write(f"Genre du client : {filtered_df['CODE_GENDER'][0]}")
-    age_client = (filtered_df['DAYS_BIRTH'] / 365).round(0)
-    st.write(f"Âge : {age_client[0]}")
-    st.write(f"Situation familiale : {filtered_df['NAME_FAMILY_STATUS'][0]}")
-    st.write(f"Nombre d'enfants : {filtered_df['CNT_CHILDREN'][0]}")
-    st.write(f"Emploi : {filtered_df['OCCUPATION_TYPE'][0]}")
+    st.write(f"Genre du client : {filtered_df['CODE_GENDER'].values[0]}")
+    age_client = (filtered_df['DAYS_BIRTH'].values[0] / 365).round(0)
+    st.write(f"Âge : {age_client}")
+    st.write(f"Situation familiale : {filtered_df['NAME_FAMILY_STATUS'].values[0]}")
+    st.write(f"Nombre d'enfants : {filtered_df['CNT_CHILDREN'].values[0]}")
+    st.write(f"Emploi : {filtered_df['OCCUPATION_TYPE'].values[0]}")
 
     revenu = float(filtered_df['AMT_INCOME_TOTAL'].values[0])
     st.write(f"Revenus annuels du client : {revenu}")
