@@ -28,7 +28,7 @@ def predict_credit(request: dict = Body(examples=[test_dict])):
         raise HTTPException(status_code=400, detail=str(e))
 
     if output_proba >= th_proba:
-        prediction = "crédit non accordé"
+        prediction = "crédit refusé"
     else:
         prediction = "crédit accordé"
 
