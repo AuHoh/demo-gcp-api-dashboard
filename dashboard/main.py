@@ -1,27 +1,67 @@
+import json
+import os
+import pickle
+
 import pandas as pd
+import numpy as np
+import requests
 import streamlit as st
 import matplotlib.pyplot as plt
 import seaborn as sns
+
+api_uri = os.getenv('API_URI', 'http://localhost:8000')
 
 st.set_page_config(page_title="Prêt à dépenser")
 
 st.title("Tableau d'évaluation des risques pour l'accord des crédits")
 
+
+def request_prediction(api_uri, data):
+    headers = {"Content-Type": "application/json"}
+
+    response = requests.request(
+        method='POST', headers=headers, url=api_uri, json=data)
+
+    if response.status_code != 200:
+        raise Exception(
+            "Request failed with status {}, {}".format(response.status_code, response.text))
+
+    return response.json()
+
+
 @st.cache_data
-def get_data():
+def get_std_scaler():
+    model_path = os.getenv('SCALER_PATH', 'scaler.pkl')
+    with open(model_path, 'rb') as file:
+        std_scaler = pickle.load(file)
+    return std_scaler
+
+
+@st.cache_data
+def get_data_test_predict():
+    path = '/Users/audreyhohmann/Documents/Formation/OCR/P7/X_test_full.parquet'
+    return pd.read_parquet(path)
+
+
+df_predict = get_data_test_predict()
+
+
+@st.cache_data
+def get_data_test():
     path = '/Users/audreyhohmann/Documents/Formation/OCR/P7/df_forstream.parquet'
     return pd.read_parquet(path)
-df = get_data()
 
-#st.dataframe(df)
+
+std_scaler = get_std_scaler()
+
+df = get_data_test()
+
+# st.dataframe(df)
 ID_pret = st.selectbox('Choisir ID du prêt', df['SK_ID_CURR'], help='Filtrer sur les identifiants des crédits')
 
 # Filtrer le dataframe pour l'ID sélectionné
 filtered_df = df.loc[df['SK_ID_CURR'] == ID_pret]
-
-predict_btn = st.button('Prédire')
-st.write("Prédiction du modèle d'évaluation : ")
-#st.metric(label="Score de prédiction", value=0.53, delta=value-th_proba)
+filtered_df_predict = df_predict.loc[df_predict['SK_ID_CURR'] == ID_pret].reset_index(drop=True)
 
 st.subheader('Modifications des valeurs des features pour calculer une nouvelle prédiction : ')
 # Vérifier si des données correspondent à l'ID sélectionné
@@ -58,21 +98,88 @@ if not filtered_df.empty:
     st.write(f"Montant des annuités : {credit}")
     updated_annuity = st.slider("Variations des montants des annuités ('AMT_ANNUITY')", 0.0, 230000.0, annuity, 5000.0)
 
-    term = float("{:.2f}".format(filtered_df['CREDIT_TERM'].values[0]*100))
+    term = float("{:.2f}".format(filtered_df['CREDIT_TERM'].values[0] * 100))
     st.write(f"Taux de paiement : {term}")
     updated_term = st.slider("Variations du taux de paiement ", 0.0, 40.0, term, 1.0)
+
+    predict_btn = st.button('Prédire')
+    if predict_btn:
+        unscale_filtered_df_predict = pd.DataFrame(std_scaler.inverse_transform(
+            filtered_df_predict.drop(['SK_ID_CURR'], axis=1)),
+            columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns)
+
+        unscale_filtered_df_predict['AMT_INCOME_TOTAL'] = revenu
+        unscale_filtered_df_predict['AMT_GOODS_PRICE'] = bien
+        unscale_filtered_df_predict['AMT_CREDIT'] = credit
+        unscale_filtered_df_predict['AMT_ANNUITY'] = annuity
+        unscale_filtered_df_predict['CREDIT_TERM'] = term
+
+        unscale_filtered_df_predict['CREDIT_INCOME_PERCENT'] = np.divide(updated_credit, updated_income)
+        unscale_filtered_df_predict['ANNUITY_INCOME_PERCENT'] = np.divide(updated_annuity, updated_income)
+        unscale_filtered_df_predict['CREDIT_TERM'] = np.divide(updated_annuity, updated_credit)
+        unscale_filtered_df_predict = unscale_filtered_df_predict.replace(np.inf, 0)
+        filtered_df_predict = pd.DataFrame(std_scaler.transform(unscale_filtered_df_predict),
+                                           columns=unscale_filtered_df_predict.columns)
+
+        response_result = json.loads(request_prediction(f'{api_uri}/predict',
+                                                        filtered_df_predict.to_dict(orient='index')[0]))
+
+        st.write("Prédiction du modèle d'évaluation : ")
+        st.metric(label="Score de prédiction",
+                  value=response_result['credit_score_risk']['predict_proba'],
+                  delta=response_result['credit_score_risk']['predict_proba'] - response_result['credit_score_risk'][
+                      'predict_th_proba'])
+
+    contrib_btn = st.button('Contribution des features')
+    if contrib_btn:
+        response_result = json.loads(request_prediction(f'{api_uri}/contrib',
+                                                        filtered_df_predict.drop(['SK_ID_CURR'], axis=1).to_dict(orient='index')[0]))
+        shap_values = response_result['shap_values']
+        df_shap_values = pd.DataFrame([shap_values],
+                                      columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns).T.reset_index(drop=False)
+        df_shap_values.columns = ['feature', 'shap_value']
+        df_shap_values = df_shap_values.sort_values('shap_value', ascending=False)
+
+        fig, ax = plt.subplots(figsize=(10, 8))
+        plt.bar(df_shap_values.head()['feature'], df_shap_values.head()['shap_value'])
+        st.pyplot(fig)
+
+
 else:
     st.write("Aucune donnée correspondante pour l'ID prêt sélectionné.")
 
-predict_btn = st.button('Nouvelle prédiction')
+
+def dowload_excel():
+    # Chemin du fichier Excel existant
+    col_des = '/Users/audreyhohmann/Documents/Formation/OCR/P7/colonnes_description.xlsx'
+
+    # Lecture du fichier Excel en tant que binaire
+    with open(col_des, 'rb') as fichier:
+        contenu = fichier.read()
+
+    # Téléchargement du fichier
+    st.download_button(
+        label='Télécharger la description des features du modèle',
+        data=contenu,
+        file_name='colonnes_description.xlsx',
+        mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+
+
+dowload_excel()
+
 
 @st.cache_data
-def get_data():
+def get_data_train():
     path_train = '/Users/audreyhohmann/Documents/Formation/OCR/P7/df_train_forstream.parquet'
     return pd.read_parquet(path_train)
-df_train = get_data()
+
+
+df_train = get_data_train()
 
 sns.set_theme(style="ticks", font='sans-serif', palette="Set2")
+
+
 def plot_kde(df, feature_y):
     # Créer la figure et les sous-graphiques
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -99,7 +206,6 @@ def plot_kde(df, feature_y):
         # KDE plot des prêts non remboursés à temps (target == 1)
         sns.kdeplot(df.loc[df['TARGET'] == 1, feature_y], color="red", label='crédit refusé', ax=ax)
 
-
     # Ajout de la position du client
     if selected_feature_y == 'AMT_INCOME_TOTAL':
         plt.axvline(x=revenu, color='blue', linestyle='--', label='Position du client')
@@ -119,7 +225,6 @@ def plot_kde(df, feature_y):
     ax.set_ylabel('Densité')
     ax.set_title('Répartition des ' + feature_y, fontsize=22)
 
-
     # Ajout de la légende
     ax.legend()
 
@@ -130,19 +235,21 @@ def plot_kde(df, feature_y):
     # Afficher le graphique dans Streamlit
     st.pyplot(fig)
 
+
 def plot_relplot(df, x_feature, y_feature, hue_op=None):
     # Créer la figure et les sous-graphiques
     fig, ax = plt.subplots(figsize=(10, 8))
 
-
     if hue_op is None:
         sns.scatterplot(data=df, x=x_feature, y=y_feature, color='olive', ax=ax)
     elif hue_op == job:
-        sns.scatterplot(data=df.loc[df['OCCUPATION_TYPE'] == job], x=x_feature, y=y_feature, hue='OCCUPATION_TYPE', ax=ax)
+        sns.scatterplot(data=df.loc[df['OCCUPATION_TYPE'] == job], x=x_feature, y=y_feature, hue='OCCUPATION_TYPE',
+                        ax=ax)
     elif hue_op == genre:
         sns.scatterplot(data=df.loc[df['CODE_GENDER'] == genre], x=x_feature, y=y_feature, hue='CODE_GENDER', ax=ax)
     elif hue_op == family:
-        sns.scatterplot(data=df.loc[df['NAME_FAMILY_STATUS'] == family], x=x_feature, y=y_feature, hue='NAME_FAMILY_STATUS', ax=ax)
+        sns.scatterplot(data=df.loc[df['NAME_FAMILY_STATUS'] == family], x=x_feature, y=y_feature,
+                        hue='NAME_FAMILY_STATUS', ax=ax)
     else:
         sns.scatterplot(data=df, x=x_feature, y=y_feature, hue=hue_op, ax=ax)
 
@@ -154,7 +261,7 @@ def plot_relplot(df, x_feature, y_feature, hue_op=None):
     ax.legend()
     # plt.tight_layout()
 
-    #ajout de la position du client
+    # ajout de la position du client
     if x_feature == 'AMT_INCOME_TOTAL' and y_feature == 'AMT_CREDIT':
         plt.scatter(revenu, credit, color='blue', marker='x', label='Position du client')
     elif x_feature == 'AMT_INCOME_TOTAL' and y_feature == 'AMT_GOODS_PRICE':
@@ -162,14 +269,14 @@ def plot_relplot(df, x_feature, y_feature, hue_op=None):
     elif x_feature == 'AMT_INCOME_TOTAL' and y_feature == 'AMT_ANNUITY':
         plt.scatter(revenu, annuity, color='blue', marker='x', label='Position du client')
 
-
     # Afficher le graphique dans Streamlit
     st.pyplot(fig)
 
 
 st.subheader("Distribution de la feature sélectionnée selon les classes du modèle d'entraînement")
 # Widget selectbox pour choisir la feature y
-selected_feature_y = st.selectbox('Choisir la feature', df_train[['AMT_INCOME_TOTAL', 'AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY', 'DAYS_BIRTH', 'DAYS_EMPLOYED']].columns)
+selected_feature_y = st.selectbox('Choisir la feature', df_train[
+    ['AMT_INCOME_TOTAL', 'AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY', 'DAYS_BIRTH', 'DAYS_EMPLOYED']].columns)
 
 # Vérifier si des données correspondent à la feature sélectionnée
 if selected_feature_y in df_train.columns:
@@ -179,17 +286,19 @@ if selected_feature_y in df_train.columns:
 else:
     st.write("La feature sélectionnée n'est pas présente dans le dataframe.")
 
-print(job)
-
 st.subheader("Analyse bivariée entre les features quantitatives")
-selected_feature_x_relplot = st.selectbox('Choisir la feature 1', df_train[['AMT_INCOME_TOTAL', 'AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns, key="x_feature")
-selected_feature_y_relplot = st.selectbox('Choisir la feature 2', df_train[['AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns, key="y_feature")
-selected_feature_hue = st.selectbox('Choisir la feature catégorielle (coloration des points)', ['None'] + df_train[['CODE_GENDER', 'OCCUPATION_TYPE', 'NAME_FAMILY_STATUS']].columns.tolist() + [genre] + [job] + [family], index=0, key="hue_feature")
+selected_feature_x_relplot = st.selectbox('Choisir la feature 1', df_train[
+    ['AMT_INCOME_TOTAL', 'AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns, key="x_feature")
+selected_feature_y_relplot = st.selectbox('Choisir la feature 2',
+                                          df_train[['AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns,
+                                          key="y_feature")
+selected_feature_hue = st.selectbox('Choisir la feature catégorielle (coloration des points)', ['None'] + df_train[
+    ['CODE_GENDER', 'OCCUPATION_TYPE', 'NAME_FAMILY_STATUS']].columns.tolist() + [genre] + [job] + [family], index=0,
+                                    key="hue_feature")
 
 if selected_feature_hue == 'None':
     hue_op = None
 else:
     hue_op = selected_feature_hue
-
 
 plot_relplot(df_train, selected_feature_x_relplot, selected_feature_y_relplot, hue_op)
