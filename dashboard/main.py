@@ -2,6 +2,8 @@ import json
 import os
 import pickle
 
+from PIL import Image
+
 import pandas as pd
 import numpy as np
 import requests
@@ -56,99 +58,6 @@ std_scaler = get_std_scaler()
 
 df = get_data_test()
 
-# st.dataframe(df)
-ID_pret = st.selectbox('Choisir ID du prêt', df['SK_ID_CURR'], help='Filtrer sur les identifiants des crédits')
-
-# Filtrer le dataframe pour l'ID sélectionné
-filtered_df = df.loc[df['SK_ID_CURR'] == ID_pret]
-filtered_df_predict = df_predict.loc[df_predict['SK_ID_CURR'] == ID_pret].reset_index(drop=True)
-
-st.subheader('Modifications des valeurs des features pour calculer une nouvelle prédiction : ')
-# Vérifier si des données correspondent à l'ID sélectionné
-if not filtered_df.empty:
-    with st.sidebar:
-        st.subheader(f"Profil du client pour l'ID prêt sélectionné : {ID_pret}")
-        genre = filtered_df['CODE_GENDER'].values[0]
-        st.write(f"Genre du client : {genre}")
-        age_client = (filtered_df['DAYS_BIRTH'].values[0] / 365).round(0)
-        st.write(f"Âge : {age_client}")
-        family = filtered_df['NAME_FAMILY_STATUS'].values[0]
-        st.write(f"Situation familiale : {family}")
-        st.write(f"Nombre d'enfants : {filtered_df['CNT_CHILDREN'].values[0]}")
-        st.write(f"Propriétaire d'une maison ou d'un appartement (Y/N) : {filtered_df['FLAG_OWN_REALTY'].values[0]}")
-        st.write(f"Propriétaire d'une voiture (Y/N) : {filtered_df['FLAG_OWN_CAR'].values[0]}")
-        job = filtered_df['OCCUPATION_TYPE'].values[0]
-        st.write(f"Emploi : {job}")
-        years_employed = (filtered_df['DAYS_EMPLOYED'].values[0] / - 365).round(0)
-        st.write(f"Nombre d'années d'activité : {years_employed}")
-
-    revenu = float(filtered_df['AMT_INCOME_TOTAL'].values[0])
-    st.write(f"Revenus annuels du client ('AMT_INCOME_TOTAL') : {revenu}")
-    updated_income = st.slider("Variations du revenus annuels", 0.0, 600000.0, revenu, 5000.0)
-
-    bien = float(filtered_df['AMT_GOODS_PRICE'].values[0])
-    st.write(f"Prix du bien ('AMT_GOODS_PRICE') : {bien}")
-    updated_bien = st.slider("Variations des prix du bien ", 0.0, 4000000.0, bien, 10000.0)
-
-    credit = float(filtered_df['AMT_CREDIT'].values[0])
-    st.write(f"Montant du crédit ('AMT_CREDIT') : {credit}")
-    updated_credit = st.slider("Variations des montants du crédit ", 0.0, 4000000.0, credit, 10000.0)
-
-    annuity = float(filtered_df['AMT_ANNUITY'].values[0])
-    st.write(f"Montant des annuités : {credit}")
-    updated_annuity = st.slider("Variations des montants des annuités ('AMT_ANNUITY')", 0.0, 230000.0, annuity, 5000.0)
-
-    term = float("{:.2f}".format(filtered_df['CREDIT_TERM'].values[0] * 100))
-    st.write(f"Taux de paiement : {term}")
-    updated_term = st.slider("Variations du taux de paiement ", 0.0, 40.0, term, 1.0)
-
-    predict_btn = st.button('Prédire')
-    if predict_btn:
-        unscale_filtered_df_predict = pd.DataFrame(std_scaler.inverse_transform(
-            filtered_df_predict.drop(['SK_ID_CURR'], axis=1)),
-            columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns)
-
-        unscale_filtered_df_predict['AMT_INCOME_TOTAL'] = revenu
-        unscale_filtered_df_predict['AMT_GOODS_PRICE'] = bien
-        unscale_filtered_df_predict['AMT_CREDIT'] = credit
-        unscale_filtered_df_predict['AMT_ANNUITY'] = annuity
-        unscale_filtered_df_predict['CREDIT_TERM'] = term
-
-        unscale_filtered_df_predict['CREDIT_INCOME_PERCENT'] = np.divide(updated_credit, updated_income)
-        unscale_filtered_df_predict['ANNUITY_INCOME_PERCENT'] = np.divide(updated_annuity, updated_income)
-        unscale_filtered_df_predict['CREDIT_TERM'] = np.divide(updated_annuity, updated_credit)
-        unscale_filtered_df_predict = unscale_filtered_df_predict.replace(np.inf, 0)
-        filtered_df_predict = pd.DataFrame(std_scaler.transform(unscale_filtered_df_predict),
-                                           columns=unscale_filtered_df_predict.columns)
-
-        response_result = json.loads(request_prediction(f'{api_uri}/predict',
-                                                        filtered_df_predict.to_dict(orient='index')[0]))
-
-        st.write("Prédiction du modèle d'évaluation : ")
-        st.metric(label="Score de prédiction",
-                  value=response_result['credit_score_risk']['predict_proba'],
-                  delta=response_result['credit_score_risk']['predict_proba'] - response_result['credit_score_risk'][
-                      'predict_th_proba'])
-
-    contrib_btn = st.button('Contribution des features')
-    if contrib_btn:
-        response_result = json.loads(request_prediction(f'{api_uri}/contrib',
-                                                        filtered_df_predict.drop(['SK_ID_CURR'], axis=1).to_dict(orient='index')[0]))
-        shap_values = response_result['shap_values']
-        df_shap_values = pd.DataFrame([shap_values],
-                                      columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns).T.reset_index(drop=False)
-        df_shap_values.columns = ['feature', 'shap_value']
-        df_shap_values = df_shap_values.sort_values('shap_value', ascending=False)
-
-        fig, ax = plt.subplots(figsize=(10, 8))
-        plt.bar(df_shap_values.head()['feature'], df_shap_values.head()['shap_value'])
-        st.pyplot(fig)
-
-
-else:
-    st.write("Aucune donnée correspondante pour l'ID prêt sélectionné.")
-
-
 def dowload_excel():
     # Chemin du fichier Excel existant
     col_des = '/Users/audreyhohmann/Documents/Formation/OCR/P7/colonnes_description.xlsx'
@@ -164,6 +73,103 @@ def dowload_excel():
         file_name='colonnes_description.xlsx',
         mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
+
+
+# st.dataframe(df)
+ID_pret = st.selectbox('Choisir ID du prêt', df['SK_ID_CURR'], help='Filtrer sur les identifiants des crédits')
+
+# Filtrer le dataframe pour l'ID sélectionné
+filtered_df = df.loc[df['SK_ID_CURR'] == ID_pret]
+filtered_df_predict = df_predict.loc[df_predict['SK_ID_CURR'] == ID_pret].reset_index(drop=True)
+
+st.subheader('OPTIONNEL : Modifications des valeurs des features suivantes : ')
+# Vérifier si des données correspondent à l'ID sélectionné
+if not filtered_df.empty:
+    with st.sidebar:
+        st.header(f"Profil du client pour l'ID prêt sélectionné : {ID_pret}")
+        genre = filtered_df['CODE_GENDER'].values[0]
+        st.write(f"Genre du client : {genre}")
+        age_client = (filtered_df['DAYS_BIRTH'].values[0] / 365).round(0)
+        st.write(f"Âge : {age_client}")
+        family = filtered_df['NAME_FAMILY_STATUS'].values[0]
+        st.write(f"Situation familiale : {family}")
+        st.write(f"Nombre d'enfants : {filtered_df['CNT_CHILDREN'].values[0]}")
+        st.write(f"Propriétaire d'une maison ou d'un appartement (Y/N) : {filtered_df['FLAG_OWN_REALTY'].values[0]}")
+        st.write(f"Propriétaire d'une voiture (Y/N) : {filtered_df['FLAG_OWN_CAR'].values[0]}")
+        job = filtered_df['OCCUPATION_TYPE'].values[0]
+        st.write(f"Emploi : {job}")
+        years_employed = (filtered_df['DAYS_EMPLOYED'].values[0] / - 365).round(0)
+        st.write(f"Nombre d'années d'activité : {years_employed}")
+        revenu = float(filtered_df['AMT_INCOME_TOTAL'].values[0])
+        st.write(f"Revenus annuels du client ('AMT_INCOME_TOTAL') : {revenu}")
+        st.subheader(f"Informations sur le prêt : ")
+        bien = float(filtered_df['AMT_GOODS_PRICE'].values[0])
+        st.write(f"Prix du bien ('AMT_GOODS_PRICE') : {bien}")
+        credit = float(filtered_df['AMT_CREDIT'].values[0])
+        st.write(f"Montant du crédit ('AMT_CREDIT') : {credit}")
+        annuity = float(filtered_df['AMT_ANNUITY'].values[0])
+        st.write(f"Montant des annuités : {annuity}")
+
+    updated_income = st.slider("Variations du revenus annuels", 0.0, 600000.0, revenu, 5000.0)
+    updated_bien = st.slider("Variations des prix du bien ", 0.0, 4000000.0, bien, 10000.0)
+    updated_credit = st.slider("Variations des montants du crédit ", 0.0, 4000000.0, credit, 10000.0)
+    updated_annuity = st.slider("Variations des montants des annuités ('AMT_ANNUITY')", 0.0, 230000.0, annuity, 5000.0)
+
+
+    predict_btn = st.button('Prédire')
+    if predict_btn:
+        unscale_filtered_df_predict = pd.DataFrame(std_scaler.inverse_transform(
+            filtered_df_predict.drop(['SK_ID_CURR'], axis=1)),
+            columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns)
+
+        unscale_filtered_df_predict['AMT_INCOME_TOTAL'] = revenu
+        unscale_filtered_df_predict['AMT_GOODS_PRICE'] = bien
+        unscale_filtered_df_predict['AMT_CREDIT'] = credit
+        unscale_filtered_df_predict['AMT_ANNUITY'] = annuity
+
+        unscale_filtered_df_predict['CREDIT_INCOME_PERCENT'] = np.divide(updated_credit, updated_income)
+        unscale_filtered_df_predict['ANNUITY_INCOME_PERCENT'] = np.divide(updated_annuity, updated_income)
+        unscale_filtered_df_predict['CREDIT_TERM'] = np.divide(updated_annuity, updated_credit)
+        unscale_filtered_df_predict = unscale_filtered_df_predict.replace(np.inf, 0)
+        filtered_df_predict = pd.DataFrame(std_scaler.transform(unscale_filtered_df_predict),
+                                           columns=unscale_filtered_df_predict.columns)
+
+        response_result = json.loads(request_prediction(f'{api_uri}/predict',
+                                                        filtered_df_predict.to_dict(orient='index')[0]))
+
+        st.subheader("Prédiction du modèle d'évaluation : ")
+        st.write(response_result['prediction'])
+        st.metric(label="Score de prédiction et delta par rapport au seuil optimal",
+                  value=response_result['credit_score_risk']['predict_proba'],
+                  delta=response_result['credit_score_risk']['predict_proba'] - response_result['credit_score_risk'][
+                      'predict_th_proba'],
+                  delta_color="inverse")
+
+        graph = Image.open('/Users/audreyhohmann/Documents/Formation/OCR/P7/top50most.png')
+        st.image(graph, caption ="Features contribuant le plus à l'élaboration du modèle")
+
+    contrib_btn = st.button('Contribution des features au score client')
+    if contrib_btn:
+        response_result = json.loads(request_prediction(f'{api_uri}/contrib',
+                                                        filtered_df_predict.drop(['SK_ID_CURR'], axis=1).to_dict(orient='index')[0]))
+        shap_values = response_result['shap_values']
+        df_shap_values = pd.DataFrame([shap_values],
+                                      columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns).T.reset_index(drop=False)
+        df_shap_values.columns = ['feature', 'shap_value']
+        df_shap_values = df_shap_values.sort_values('shap_value', ascending=False)
+
+        fig, ax = plt.subplots(figsize=(10, 8))
+        sns.barplot(data=df_shap_values.head(15), x='shap_value', y='feature', palette="viridis", ax=ax)
+        ax.set_xlabel("Valeurs d'importance")
+        ax.set_ylabel("")
+        ax.set_title("Graphique des features importance local", fontsize=22)
+        st.pyplot(fig)
+
+
+else:
+    st.write("Aucune donnée correspondante pour l'ID prêt sélectionné.")
+
+
 
 
 dowload_excel()
@@ -287,18 +293,22 @@ else:
     st.write("La feature sélectionnée n'est pas présente dans le dataframe.")
 
 st.subheader("Analyse bivariée entre les features quantitatives")
-selected_feature_x_relplot = st.selectbox('Choisir la feature 1', df_train[
-    ['AMT_INCOME_TOTAL', 'AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns, key="x_feature")
-selected_feature_y_relplot = st.selectbox('Choisir la feature 2',
-                                          df_train[['AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns,
-                                          key="y_feature")
-selected_feature_hue = st.selectbox('Choisir la feature catégorielle (coloration des points)', ['None'] + df_train[
-    ['CODE_GENDER', 'OCCUPATION_TYPE', 'NAME_FAMILY_STATUS']].columns.tolist() + [genre] + [job] + [family], index=0,
-                                    key="hue_feature")
 
-if selected_feature_hue == 'None':
-    hue_op = None
-else:
-    hue_op = selected_feature_hue
+with st.spinner('Wait for it...'):
+    selected_feature_x_relplot = st.selectbox('Choisir la feature 1', df_train[
+        ['AMT_INCOME_TOTAL', 'AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns, key="x_feature")
+    selected_feature_y_relplot = st.selectbox('Choisir la feature 2',
+                                              df_train[['AMT_CREDIT', 'AMT_GOODS_PRICE', 'AMT_ANNUITY']].columns,
+                                              key="y_feature")
+    selected_feature_hue = st.selectbox('Choisir la feature catégorielle (coloration des points)', ['None'] + df_train[
+        ['CODE_GENDER', 'OCCUPATION_TYPE', 'NAME_FAMILY_STATUS']].columns.tolist() + [genre] + [job] + [family],
+                                        index=0,
+                                        key="hue_feature")
 
-plot_relplot(df_train, selected_feature_x_relplot, selected_feature_y_relplot, hue_op)
+    if selected_feature_hue == 'None':
+        hue_op = None
+    else:
+        hue_op = selected_feature_hue
+
+    plot_relplot(df_train, selected_feature_x_relplot, selected_feature_y_relplot, hue_op)
+
