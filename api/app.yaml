@@ -1,0 +1,10 @@
+runtime: python38
+service: default
+entrypoint: gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker
+instance_class: F1
+automatic_scaling:
+  min_instances: 0
+  max_instances: 2
+
+env_variables:
+    MODEL_PATH: 'gs://p7-formation-bucket/models/model.pkl'

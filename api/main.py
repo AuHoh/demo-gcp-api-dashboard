@@ -4,8 +4,6 @@ import os
 from smart_open import open
 import shap
 
-
-
 import pandas as pd
 from fastapi import FastAPI, Body, HTTPException
 
