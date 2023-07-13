@@ -1,0 +1,59 @@
+steps:
+  # This step builds the container image.
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Build image
+    args:
+      - 'build'
+      - '-t'
+      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:$SHORT_SHA'
+      - './dashboard'
+
+  # This step pushes the image to Container Registry
+  # The PROJECT_ID and SHORT_SHA variables are automatically
+  # replaced by Cloud Build.
+  - name: 'gcr.io/cloud-builders/docker'
+    id: Push image
+    args:
+      - 'push'
+      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:$SHORT_SHA'
+
+  # add latest tag to image
+  - name: 'gcr.io/cloud-builders/gcloud'
+    id: Tag image with latest
+    args:
+      - 'container'
+      - 'images'
+      - 'add-tag'
+      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:$SHORT_SHA'
+      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:latest'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    id: Cloud Run deployment
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'dashboard-app'
+      - '--image'
+      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:latest'
+      - '--region'
+      - 'europe-west1'
+      - '--platform'
+      - 'managed'
+      - '--cpu'
+      - '2'
+      - '--memory'
+      - '4Gi'
+      - '--service-account'
+      - 'dashboard-cloudrun-sa@p7-formation-ah.iam.gserviceaccount.com'
+      - '--concurrency'
+      - '80'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '1'
+      - '--timeout'
+      - '10m'
+      - '--port'
+      - '8080'
+      - '--allow-unauthenticated'

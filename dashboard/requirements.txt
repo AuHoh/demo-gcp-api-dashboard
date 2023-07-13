@@ -1,0 +1,6 @@
+pandas==1.5.3
+smart-open[gcs]==6.3.0
+streamlit==1.24.0
+matplotlib==3.6.3
+seaborn==0.12.2
+Pillow==9.4.0
