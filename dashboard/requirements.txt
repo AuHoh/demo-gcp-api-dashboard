@@ -5,4 +5,5 @@ streamlit==1.24.0
 matplotlib==3.6.3
 seaborn==0.12.2
 Pillow==9.4.0
-fsspec[full]
+scikit-learn==1.2.1
+fsspec
