@@ -2,8 +2,8 @@ FROM python:3.8-slim
 
 RUN apt-get update -y
 
-COPY /dashboard /app
-WORKDIR /app
+COPY . /app
+WORKDIR /app/dashboard
 RUN pip install -r requirements.txt
 
 EXPOSE 8080
