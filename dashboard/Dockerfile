@@ -2,7 +2,7 @@ FROM python:3.8-slim
 
 RUN apt-get update -y
 
-COPY ./dashboard /app
+COPY /dashboard /app
 WORKDIR /app
 RUN pip install -r requirements.txt
 
