@@ -7,3 +7,4 @@ seaborn==0.12.2
 Pillow==9.4.0
 scikit-learn==1.2.1
 fsspec
+gcsfs
