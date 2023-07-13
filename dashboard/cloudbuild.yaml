@@ -2,11 +2,8 @@ steps:
   # This step builds the container image.
   - name: 'gcr.io/cloud-builders/docker'
     id: Build image
-    args:
-      - 'build'
-      - '-t'
-      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:$SHORT_SHA'
-      - './dashboard'
+    entrypoint: 'bash'
+    args: [ '-c', 'cd dashboard && docker build -t europe-west1-docker.pkg.dev/${PROJECT_ID}/dashboard-image/dashboard-app-build:$SHORT_SHA .']
 
   # This step pushes the image to Container Registry
   # The PROJECT_ID and SHORT_SHA variables are automatically
@@ -15,7 +12,7 @@ steps:
     id: Push image
     args:
       - 'push'
-      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:$SHORT_SHA'
+      - 'europe-west1-docker.pkg.dev/${PROJECT_ID}/dashboard-image/dashboard-app-build:$SHORT_SHA'
 
   # add latest tag to image
   - name: 'gcr.io/cloud-builders/gcloud'
@@ -24,8 +21,8 @@ steps:
       - 'container'
       - 'images'
       - 'add-tag'
-      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:$SHORT_SHA'
-      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:latest'
+      - 'europe-west1-docker.pkg.dev/${PROJECT_ID}/dashboard-image/dashboard-app-build:$SHORT_SHA'
+      - 'europe-west1-docker.pkg.dev/${PROJECT_ID}/dashboard-image/dashboard-app-build:latest'
 
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     id: Cloud Run deployment
@@ -35,7 +32,7 @@ steps:
       - 'deploy'
       - 'dashboard-app'
       - '--image'
-      - 'europe-west1-docker.pkg.dev/p7-formation-ah/dashboard-image/dashboard-app-build:latest'
+      - 'europe-west1-docker.pkg.dev/${PROJECT_ID}/dashboard-image/dashboard-app-build:latest'
       - '--region'
       - 'europe-west1'
       - '--platform'
@@ -45,7 +42,7 @@ steps:
       - '--memory'
       - '4Gi'
       - '--service-account'
-      - 'dashboard-cloudrun-sa@p7-formation-ah.iam.gserviceaccount.com'
+      - 'dashboard-cloudrun-sa@${PROJECT_ID}.iam.gserviceaccount.com'
       - '--concurrency'
       - '80'
       - '--min-instances'
