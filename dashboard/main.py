@@ -1,6 +1,7 @@
 import json
 import os
 import pickle
+from smart_open import open
 
 from PIL import Image
 
@@ -41,7 +42,7 @@ def get_std_scaler():
 
 @st.cache_data
 def get_data_test_predict():
-    path = '/Users/audreyhohmann/Documents/Formation/OCR/P7/X_test_full.parquet'
+    path = os.getenv('TEST_FULL_PATH', '/Users/audreyhohmann/Documents/Formation/OCR/P7/X_test_full.parquet')
     return pd.read_parquet(path)
 
 
@@ -50,7 +51,7 @@ df_predict = get_data_test_predict()
 
 @st.cache_data
 def get_data_test():
-    path = '/Users/audreyhohmann/Documents/Formation/OCR/P7/df_forstream.parquet'
+    path = os.getenv('DF_STREAM_PATH', '/Users/audreyhohmann/Documents/Formation/OCR/P7/df_forstream.parquet')
     return pd.read_parquet(path)
 
 
@@ -58,9 +59,10 @@ std_scaler = get_std_scaler()
 
 df = get_data_test()
 
+
 def dowload_excel():
     # Chemin du fichier Excel existant
-    col_des = '/Users/audreyhohmann/Documents/Formation/OCR/P7/colonnes_description.xlsx'
+    col_des = os.getenv('COL_DESC_PATH', '/Users/audreyhohmann/Documents/Formation/OCR/P7/colonnes_description.xlsx')
 
     # Lecture du fichier Excel en tant que binaire
     with open(col_des, 'rb') as fichier:
@@ -115,7 +117,6 @@ if not filtered_df.empty:
     updated_credit = st.slider("Variations des montants du crédit ", 0.0, 4000000.0, credit, 10000.0)
     updated_annuity = st.slider("Variations des montants des annuités ('AMT_ANNUITY')", 0.0, 230000.0, annuity, 5000.0)
 
-
     predict_btn = st.button('Prédire')
     if predict_btn:
         unscale_filtered_df_predict = pd.DataFrame(std_scaler.inverse_transform(
@@ -145,16 +146,18 @@ if not filtered_df.empty:
                       'predict_th_proba'],
                   delta_color="inverse")
 
-        graph = Image.open('/Users/audreyhohmann/Documents/Formation/OCR/P7/top50most.png')
-        st.image(graph, caption ="Features contribuant le plus à l'élaboration du modèle")
+        graph = Image.open('images/top50most.png')
+        st.image(graph, caption="Features contribuant le plus à l'élaboration du modèle")
 
     contrib_btn = st.button('Contribution des features au score client')
     if contrib_btn:
         response_result = json.loads(request_prediction(f'{api_uri}/contrib',
-                                                        filtered_df_predict.drop(['SK_ID_CURR'], axis=1).to_dict(orient='index')[0]))
+                                                        filtered_df_predict.drop(['SK_ID_CURR'], axis=1).to_dict(
+                                                            orient='index')[0]))
         shap_values = response_result['shap_values']
         df_shap_values = pd.DataFrame([shap_values],
-                                      columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns).T.reset_index(drop=False)
+                                      columns=filtered_df_predict.drop(['SK_ID_CURR'], axis=1).columns).T.reset_index(
+            drop=False)
         df_shap_values.columns = ['feature', 'shap_value']
         df_shap_values = df_shap_values.sort_values('shap_value', ascending=False)
 
@@ -169,15 +172,13 @@ if not filtered_df.empty:
 else:
     st.write("Aucune donnée correspondante pour l'ID prêt sélectionné.")
 
-
-
-
 dowload_excel()
 
 
 @st.cache_data
 def get_data_train():
-    path_train = '/Users/audreyhohmann/Documents/Formation/OCR/P7/df_train_forstream.parquet'
+    path_train = os.getenv('DF_TRAIN_STREAM_PATH',
+                           '/Users/audreyhohmann/Documents/Formation/OCR/P7/df_train_forstream.parquet')
     return pd.read_parquet(path_train)
 
 
@@ -311,4 +312,3 @@ with st.spinner('Wait for it...'):
         hue_op = selected_feature_hue
 
     plot_relplot(df_train, selected_feature_x_relplot, selected_feature_y_relplot, hue_op)
-

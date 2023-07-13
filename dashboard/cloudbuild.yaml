@@ -54,5 +54,5 @@ steps:
       - '--port'
       - '8080'
       - '--set-env-vars'
-      - 'API_URI=https://p7-formation-ah.ew.r.appspot.com'
+      - 'API_URI=https://p7-formation-ah.ew.r.appspot.com,TEST_FULL_PATH=gs://p7-formation-bucket/data/X_test_full.parquet,DF_STREAM_PATH=gs://p7-formation-bucket/data/df_forstream.parquet,DF_TRAIN_STREAM_PATH=gs://p7-formation-bucket/data/df_train_forstream.parquet,COL_DESC_PATH=gs://p7-formation-bucket/data/colonnes_description.xlsx,SCALER_PATH=gs://p7-formation-bucket/models/scaler.pkl'
       - '--allow-unauthenticated'
