@@ -53,4 +53,6 @@ steps:
       - '10m'
       - '--port'
       - '8080'
+      - '--set-env-vars'
+      - 'API_URI=https://p7-formation-ah.ew.r.appspot.com'
       - '--allow-unauthenticated'
