@@ -74,8 +74,9 @@ If you have any questions or feedback, use the contact details provided in the "
 
 ### Screenshot
 
-![Dashboard example](./Docs/Images/Dashboard1 2023-07-13 à 11.51.46.png)
-![Dashboard example](./Docs/Images/Dashboard2 2023-07-13 à 11.54.40.png)
+![Dashboard example](Docs/Images/dashboard_visu1.png)
+
+![Dashboard example](Docs/Images/Dashboard_visu2.png)
 
 
 
