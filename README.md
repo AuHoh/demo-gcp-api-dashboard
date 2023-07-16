@@ -83,7 +83,7 @@ streamlit run main.py
 * Click on the "Download the description of the model features" button to obtain an Excel table with a description of all the columns in the dataset. 
 * Interactive charts display the ability to select features from a drop-down list to see either the distribution of the feature based on whether credit is granted or denied, or to view a bi-variate analysis chart and position the customer value .
 
-If you have any questions or feedback, use the contact details provided in the "Contact" section to get in touch with the team responsible for the dashboar
+If you have any questions or feedback, use the contact details provided in the "Author" section to get in touch with the team responsible for the dashboard. 
 
 
 
