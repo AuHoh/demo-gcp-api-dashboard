@@ -39,6 +39,7 @@ contains the project documentation files
 Images folder : contains images from the documentation
 
 **notebook folder**
+
 P7_EDA_FEAT.ipynb : notebook that contains Exploratory Data Analysis, Data preparation.  
 
 P7_MODEL_.ipynb : notebook that contains Baseline model, Improved model, and Model interpretation. 
