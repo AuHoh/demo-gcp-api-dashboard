@@ -17,7 +17,7 @@ test_api.py : contains unit test files that check the correct operation of the v
 
 model.pkl : binary file containing the best trained model recorded using the MLflow library. File only used for local deployment of the API and Dashboard. 
 
-**dashboard folder:**
+**dashboard folder :**
 
 main.py created by streamlit library. dashboard source code, including the definition of the various visualisations, user interactions and data queries.
 
@@ -33,12 +33,12 @@ images : image files displayed in the dashboard
 
 Dockerfile : Docker image definition
 
-**Docs folder**
+**Docs folder : **
 contains the project documentation files
 
 Images folder : contains images from the documentation
 
-**notebook folder**
+**notebook folder : **
 
 P7_EDA_FEAT.ipynb : notebook that contains Exploratory Data Analysis, Data preparation.  
 
