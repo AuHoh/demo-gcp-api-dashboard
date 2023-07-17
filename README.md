@@ -33,12 +33,12 @@ images : image files displayed in the dashboard
 
 Dockerfile : Docker image definition
 
-**Docs folder : **
+**Docs folder :**
 contains the project documentation files
 
 Images folder : contains images from the documentation
 
-**notebook folder : **
+**notebook folder :**
 
 P7_EDA_FEAT.ipynb : notebook that contains Exploratory Data Analysis, Data preparation.  
 
