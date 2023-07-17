@@ -38,6 +38,13 @@ contains the project documentation files
 
 Images folder : contains images from the documentation
 
+**notebook folder**
+P7_EDA_FEAT.ipynb : notebook that contains Exploratory Data Analysis, Data preparation.  
+
+P7_MODEL_.ipynb : notebook that contains Baseline model, Improved model, and Model interpretation. 
+
+P7_datadrift.ipynb : notebook that contains Data Drift Analysis. 
+
 ## Interactive Dashboard with python - Streamlit : Instructions
 ### Description
 The credit approval risk assessment dashboard is an interactive application created with Streamlit. It enables users to view and analyse a customer's data and loans, providing relevant graphs. It also provides a score to predict the risk of granting a loan. 
